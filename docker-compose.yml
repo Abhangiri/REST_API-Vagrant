@@ -1,0 +1,57 @@
+version: '3.9'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: vagrant-db-1
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: student_db1
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      retries: 5
+    ports:
+      - "3306:3306"
+ 
+  api-1:
+    build:
+      context: ./api
+    container_name: vagrant-api-1
+    environment:
+      DATABASE_URL: mysql+pymysql://root:password@db:3306/student_db1
+      FLASK_PORT: 5000  # Consistent port for API 1
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "5000:5000"  # Map port 5000
+
+  api-2:
+    build:
+      context: ./api
+    container_name: vagrant-api-2
+    environment:
+      DATABASE_URL: mysql+pymysql://root:password@db:3306/student_db1
+      FLASK_PORT: 5001  # Consistent port for API 2
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "5001:5001"  # Map port 5001
+
+  nginx:
+    image: nginx:latest
+    container_name: vagrant-nginx-1
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api-1
+      - api-2
+    ports:
+      - "80:80"
+
+volumes:
+  db_data:
